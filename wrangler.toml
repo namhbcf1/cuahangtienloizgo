@@ -1,0 +1,8 @@
+name = "cuahangtienloizgo"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cuahangtienloizgo-db"
+database_id = "6932c096-8260-4f09-b4cb-31f2ea74ed59"

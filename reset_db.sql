@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS shifts;
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS transaction_items;
+DROP TABLE IF EXISTS d1_migrations;
