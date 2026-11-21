@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Shift, Transaction } from '../types';
 import { api, TxSummary } from '../services/api';
+import { formatDate, formatTime } from '../utils/date';
 import { Shield, AlertTriangle, CheckCircle, Clock, DollarSign, TrendingUp, Calendar, ArrowRight, PlayCircle, Eye } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -95,7 +96,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ shifts, transact
                 <h3 className="font-bold text-slate-800 text-lg">Ca Đang Làm Việc</h3>
                 <p className="text-sm text-slate-600">
                   {activeShiftInfo.shift.userName} • Bắt đầu:{' '}
-                  {new Date(activeShiftInfo.shift.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  {formatTime(activeShiftInfo.shift.startTime)}
                 </p>
               </div>
             </div>
@@ -219,13 +220,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ shifts, transact
                     <td className="p-5">
                       <div className="flex flex-col gap-1 text-sm">
                         <div className="flex items-center gap-2 text-slate-600">
-                          <Calendar className="w-3 h-3" /> {new Date(shift.startTime).toLocaleDateString()}
+                          <Calendar className="w-3 h-3" /> {formatDate(shift.startTime)}
                         </div>
                         <div className="flex items-center gap-2 text-slate-500 text-xs">
                           <Clock className="w-3 h-3" />
-                          {new Date(shift.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatTime(shift.startTime)}
                           <ArrowRight className="w-3 h-3 mx-0.5" />
-                          {shift.endTime ? new Date(shift.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
+                          {shift.endTime ? formatTime(shift.endTime) : '...'}
                         </div>
                       </div>
                     </td>

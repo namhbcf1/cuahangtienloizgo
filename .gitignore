@@ -52,3 +52,8 @@ ux-audit-v2/
 
 # Gói realtime-worker: chỉ commit mã nguồn, không commit node_modules
 realtime-worker/node_modules/
+
+# Kết quả kiểm thử cục bộ (không commit lên repo công khai)
+.playwright-mcp/
+qa_*.mjs
+qa_report.md

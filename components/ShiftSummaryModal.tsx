@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertTriangle, Clock, Calendar, User, TrendingUp, DollarSign, FileText, RefreshCw } from 'lucide-react';
 import { Shift, Transaction } from '../types';
 import { api, TxSummary } from '../services/api';
+import { formatDate, formatTime } from '../utils/date';
 
 interface ShiftSummaryModalProps {
   shift: Shift;
@@ -181,9 +182,7 @@ export const ShiftSummaryModal: React.FC<ShiftSummaryModalProps> = ({ shift, tra
                 Ngày làm việc
               </div>
               <div className="font-bold text-slate-800">
-                {new Date(shift.startTime).toLocaleDateString('vi-VN', {
-                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                })}
+                {formatDate(shift.startTime)}
               </div>
             </div>
 
@@ -193,9 +192,9 @@ export const ShiftSummaryModal: React.FC<ShiftSummaryModalProps> = ({ shift, tra
                 Thời gian ca làm
               </div>
               <div className="font-bold text-slate-800">
-                {new Date(shift.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                {formatTime(shift.startTime)}
                 {shift.endTime && (
-                  <> → {new Date(shift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</>
+                  <> → {formatTime(shift.endTime)}</>
                 )}
               </div>
               {durationMinutes !== null && (
@@ -280,7 +279,7 @@ export const ShiftSummaryModal: React.FC<ShiftSummaryModalProps> = ({ shift, tra
                       <div className="flex items-center gap-2 text-sm">
                         <span className="font-mono text-xs text-slate-400">#{t.id.slice(-6)}</span>
                         <span className="text-slate-500">
-                          {new Date(t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          {formatTime(t.date)}
                         </span>
                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${t.paymentMethod === 'CASH' ? 'bg-green-100 text-green-700' : t.paymentMethod === 'CARD' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                           {t.paymentMethod === 'CASH' ? 'Tiền mặt' : t.paymentMethod === 'CARD' ? 'Thẻ' : 'Chuyển khoản'}

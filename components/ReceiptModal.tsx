@@ -1,5 +1,6 @@
 import React from 'react';
 import { Transaction } from '../types';
+import { formatDateTime } from '../utils/date';
 import { CheckCircle, Printer, Eye, X } from 'lucide-react';
 
 interface ReceiptModalProps {
@@ -88,7 +89,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, onClose
 
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-500">Thời gian</span>
-                            <span className="text-slate-600">{new Date(transaction.date).toLocaleString('vi-VN')}</span>
+                            <span className="text-slate-600">{formatDateTime(transaction.date)}</span>
                         </div>
 
                         {transaction.cashierName && (
