@@ -20,20 +20,31 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, onClose
     return (
         <>
             {/* Modal Overlay */}
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4 animate-in fade-in duration-200">
+                {/* max-h + flex-col: hoá đơn dài sẽ cuộn bên trong, không đẩy
+                    nút bấm ra ngoài màn hình như trước. */}
+                <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92dvh]">
+
+                    {/* Close Button */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-3 right-3 z-20 p-2 bg-white/80 backdrop-blur rounded-full shadow-sm hover:bg-slate-100 transition-colors"
+                        aria-label="Đóng"
+                    >
+                        <X className="w-5 h-5 text-slate-400 hover:text-slate-600" />
+                    </button>
 
                     {/* Success Header */}
-                    <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-b border-green-100 text-center">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <CheckCircle className="w-10 h-10 text-green-600" />
+                    <div className="shrink-0 px-4 py-4 md:p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-b border-green-100 text-center">
+                        <div className="w-12 h-12 md:w-16 md:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-3">
+                            <CheckCircle className="w-7 h-7 md:w-10 md:h-10 text-green-600" />
                         </div>
-                        <h2 className="text-2xl font-bold text-slate-800">Thanh toán thành công!</h2>
-                        <p className="text-slate-600 text-sm mt-1">Giao dịch đã được lưu vào lịch sử</p>
+                        <h2 className="text-lg md:text-2xl font-bold text-slate-800">Thanh toán thành công!</h2>
+                        <p className="text-slate-600 text-xs md:text-sm mt-0.5 md:mt-1">Giao dịch đã được lưu vào lịch sử</p>
                     </div>
 
-                    {/* Receipt Details */}
-                    <div className="p-6 space-y-4" id="receipt-content">
+                    {/* Receipt Details — cuộn được */}
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 md:p-6 space-y-3 md:space-y-4" id="receipt-content">
                         {/* Store Header (visible only when printing) */}
                         <div className="hidden print:block text-center border-b-2 border-slate-800 pb-4 mb-4">
                             <h1 className="text-2xl font-bold text-slate-900">CỬA HÀNG TIỆN LỢI ZGO</h1>
@@ -109,40 +120,32 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, onClose
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+                    {/* Action Buttons — cố định đáy, không bị đẩy ra ngoài */}
+                    <div className="shrink-0 px-4 py-3 md:p-6 bg-slate-50 border-t border-slate-100 flex gap-2 md:gap-3">
                         <button
                             onClick={handlePreview}
-                            className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-white transition-all flex items-center justify-center gap-2"
+                            className="flex-1 min-h-[48px] py-3 px-2 md:px-4 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-white transition-all flex items-center justify-center gap-1.5 md:gap-2 text-sm md:text-base whitespace-nowrap"
                         >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-4 h-4 shrink-0" />
                             Xem trước
                         </button>
                         <button
                             onClick={handlePrint}
-                            className="flex-1 py-3 px-4 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-600/20"
+                            className="flex-1 min-h-[48px] py-3 px-2 md:px-4 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-1.5 md:gap-2 shadow-lg shadow-primary-600/20 text-sm md:text-base whitespace-nowrap"
                         >
-                            <Printer className="w-4 h-4" />
+                            <Printer className="w-4 h-4 shrink-0" />
                             In hóa đơn
                         </button>
                     </div>
 
-                    <div className="p-4 border-t border-slate-100">
+                    <div className="shrink-0 px-4 py-3 md:p-4 border-t border-slate-100 pb-[calc(12px+env(safe-area-inset-bottom))] md:pb-4">
                         <button
                             onClick={onClose}
-                            className="w-full py-3 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
+                            className="w-full min-h-[48px] py-3 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
                         >
                             Đơn hàng mới
                         </button>
                     </div>
-
-                    {/* Close Button */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
-                    >
-                        <X className="w-5 h-5 text-slate-400 hover:text-slate-600" />
-                    </button>
                 </div>
             </div>
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme thật của app, dùng sau khi splash đóng. -->
+    <style name="Theme.ZGOPOS" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:statusBarColor">@color/zgo_blue_dark</item>
+        <item name="android:navigationBarColor">@color/zgo_blue_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!--
+      Splash screen theo chuẩn Android 12+ (androidx.core:core-splashscreen).
+
+      Trước đây dependency này được khai báo nhưng không dùng, và app vẫn hiện
+      splash kiểu cũ qua android:windowBackground — trên Android 12+ hệ thống
+      tự vẽ thêm một splash nữa, nên người dùng thấy logo "nháy" hai lần.
+      Giờ chỉ còn một splash do hệ thống vẽ, cùng màu và cùng logo.
+    -->
+    <style name="Theme.ZGOPOS.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/zgo_blue</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/zgo_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.ZGOPOS</item>
+    </style>
+</resources>

@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS products (
     category TEXT, -- Tên nhóm
     stock INTEGER DEFAULT 0, -- Tồn kho
     unit TEXT, -- ĐVT
-    image TEXT
+    image TEXT,
+    barcodes TEXT DEFAULT '[]' -- JSON array of extra barcodes
 );
 
 -- Create Shifts Table

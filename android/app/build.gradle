@@ -1,0 +1,103 @@
+import java.util.Properties
+
+plugins {
+    id 'com.android.application'
+}
+
+// --- Đọc cấu hình ký số (nếu có). Không có thì build release sẽ KHÔNG ký. ---
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+android {
+    namespace 'com.zgo.pos'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.zgo.pos"
+        minSdk 24
+        targetSdk 35
+        versionCode 4
+        versionName "1.3.0"
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreProps.getProperty("storeFile") != null) {
+                storeFile rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword keystoreProps.getProperty("storePassword")
+                keyAlias keystoreProps.getProperty("keyAlias")
+                keyPassword keystoreProps.getProperty("keyPassword")
+                v1SigningEnabled true
+                v2SigningEnabled true
+                // v3 cho phép xoay khoá ký sau này mà không mất người dùng đã cài.
+                enableV3Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            debuggable true
+            // Cho phép gọi API http://10.0.2.2:8788 (wrangler pages dev) khi test
+            // trên emulator. Chỉ bản debug mới bật; release luôn NEVER_ALLOW.
+            buildConfigField "boolean", "ALLOW_MIXED_CONTENT", "true"
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "boolean", "ALLOW_MIXED_CONTENT", "false"
+            if (keystoreProps.getProperty("storeFile") != null) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        // MainActivity đọc BuildConfig.VERSION_NAME để gắn vào User-Agent.
+        // AGP 8 tắt BuildConfig mặc định nên phải bật lại.
+        buildConfig true
+    }
+
+    packagingOptions {
+        resources.excludes += ['META-INF/*.kotlin_module', 'META-INF/*.version']
+    }
+
+    bundle {
+        language.enableSplit = false
+        density.enableSplit = false
+        abi.enableSplit = false
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    // Căn phiên bản toàn bộ kotlin-stdlib / jdk7 / jdk8 về 1.8.22.
+    // Không có BOM này: core-ktx kéo stdlib 1.8.22 còn webkit kéo jdk7/jdk8 1.6.21
+    // -> "Duplicate class kotlin.collections.jdk8.CollectionsJDK8Kt" khi checkDebugDuplicateClasses.
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
+
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation 'androidx.webkit:webkit:1.10.0'
+
+    // WorkManager: chạy kiểm tra nghiệp vụ định kỳ ở nền, kể cả khi app đã tắt.
+    // Đây là cách duy nhất để thông báo vẫn nổi khi app đóng (Android không cho
+    // tiến trình thường trực). Chu kỳ tối thiểu 15 phút.
+    implementation 'androidx.work:work-runtime:2.9.1'
+}

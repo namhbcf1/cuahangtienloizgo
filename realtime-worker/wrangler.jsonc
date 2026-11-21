@@ -1,0 +1,25 @@
+{
+  "name": "zgo-realtime",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-01",
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REALTIME",
+        "class_name": "RealtimeHub"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RealtimeHub"]
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}

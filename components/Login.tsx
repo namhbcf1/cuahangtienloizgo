@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { Lock, User as UserIcon, ChevronRight } from 'lucide-react';
+import { api } from '../services/api';
 
 interface LoginProps {
   users: User[];
@@ -12,6 +13,7 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin }) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
 
   const handleNumClick = (num: string) => {
     if (pin.length < 4) setPin(prev => prev + num);
@@ -49,13 +51,19 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedUser, pin]);
 
-  const handleSubmit = () => {
-    if (!selectedUser) return;
-    if (pin === selectedUser.pin) {
-      onLogin(selectedUser);
-    } else {
-      setError('Mã PIN không đúng');
+  const handleSubmit = async () => {
+    if (!selectedUser || checking) return;
+    setChecking(true);
+    setError('');
+    try {
+      // Xác thực ở server: PIN không còn được gửi xuống trình duyệt.
+      const verified = await api.login(selectedUser.id, pin);
+      onLogin(verified);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Mã PIN không đúng');
       setPin('');
+    } finally {
+      setChecking(false);
     }
   };
 

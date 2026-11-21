@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lớp monochrome cho adaptive icon (Android 13+ "themed icon").
+  Hệ điều hành tự tô màu theo theme của người dùng, nên chỉ cần hình đặc,
+  một màu, không nền. Hình: hoá đơn có dấu tích — cùng ngôn ngữ với icon
+  thông báo (ic_stat_zgo).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Hoá đơn: khung 44x56 đặt giữa vùng an toàn 72x72 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,28h36c1.1,0 2,0.9 2,2v54l-6.5,-4L61,84l-7,-4l-7,4l-6.5,-4L34,84V30c0,-1.1 0.9,-2 2,-2z" />
+    <!-- Dấu tích khoét rỗng -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M44,52l8,8 16,-16" />
+</vector>

@@ -7,13 +7,22 @@ export interface Product {
   stock: number; // Tồn kho
   unit?: string; // ĐVT
   image?: string;
+  barcodes?: string[]; // Mã vạch phụ (quét mã nào cũng tìm được SP)
 }
 
 export interface CartItem {
   productId: string;
   name: string;
+  /** Giá bán thực tế của dòng hàng — có thể đã sửa tay lúc thanh toán. */
   price: number;
   quantity: number;
+  /**
+   * Giá gốc trong kho tại lúc thêm vào giỏ.
+   *
+   * Dùng để biết dòng hàng đã bị sửa giá hay chưa (hiện nhãn "đã sửa" và cho
+   * phép hoàn tác). Không gửi lên server — server chỉ cần `price` thật đã bán.
+   */
+  originalPrice?: number;
 }
 
 export interface Transaction {
@@ -38,7 +47,8 @@ export interface User {
   id: string;
   name: string;
   role: 'ADMIN' | 'STAFF';
-  pin: string;
+  /** Không còn được server trả về; chỉ dùng khi tạo/sửa nhân viên. */
+  pin?: string;
 }
 
 export interface Shift {
@@ -54,4 +64,4 @@ export interface Shift {
   status: 'OPEN' | 'CLOSED';
 }
 
-export type ViewState = 'POS' | 'TRANSACTIONS' | 'INVENTORY' | 'ADMIN_DASHBOARD' | 'EMPLOYEE_MANAGEMENT';  
+export type ViewState = 'POS' | 'TRANSACTIONS' | 'INVENTORY' | 'ADMIN_DASHBOARD' | 'EMPLOYEE_MANAGEMENT';

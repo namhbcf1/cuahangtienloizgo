@@ -97,7 +97,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, o
                 <div className="flex gap-1">
                     <button 
                         onClick={() => openEditModal(user)}
-                        className="text-slate-400 hover:text-primary-600 p-2 hover:bg-primary-50 rounded-lg transition-colors"
+                        className="text-slate-400 hover:text-primary-600 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-primary-50 rounded-lg transition-colors"
                         title="Chỉnh sửa"
                     >
                         <Pencil className="w-4 h-4" />
@@ -107,7 +107,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, o
                         onClick={() => {
                             if(confirm('Bạn có chắc muốn xóa nhân viên này?')) onDeleteUser(user.id);
                         }}
-                        className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        className="text-slate-400 hover:text-red-500 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-red-50 rounded-lg transition-colors"
                         title="Xóa"
                     >
                         <Trash2 className="w-4 h-4" />

@@ -1,8 +1,29 @@
 name = "cuahangtienloizgo"
 pages_build_output_dir = "dist"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-11-01"
 
+# Tài khoản: bangachieu2@gmail.com (5b62d10947844251d23e0eac532531dd)
+# Chuyển từ tài khoản cũ bangachieu3@gmail.com vì cạn hạn mức D1 Free.
+#
+# Tài khoản cũ (giữ để tham chiếu, KHÔNG dùng nữa):
+#   account : d0ac3e886aebf51b6585b3a4788cc537
+#   database: 6932c096-8260-4f09-b4cb-31f2ea74ed59
+#   domain  : cuahangtienloizgo.pages.dev
 [[d1_databases]]
 binding = "DB"
 database_name = "cuahangtienloizgo-db"
-database_id = "6932c096-8260-4f09-b4cb-31f2ea74ed59"
+database_id = "e61cb8b4-0915-4e27-93e3-678023da3c7e"
+
+# Durable Object hub đẩy tín hiệu realtime.
+# Worker nằm ở realtime-worker/, deploy riêng:
+#   cd realtime-worker && npx wrangler deploy
+# (Cloudflare không cho tạo Durable Object trong project Pages.)
+[[services]]
+binding = "REALTIME"
+service = "zgo-realtime"
+
+# Khoá ký token phiên (HMAC-SHA256). Đặt một lần:
+#   npx wrangler pages secret put AUTH_SECRET --project-name cuahangtienloizgo
+# Không đặt thì API tự sinh khoá ngẫu nhiên và lưu vào bảng sync_meta của D1 —
+# vẫn chạy bình thường, chỉ là không xoay khoá được nếu mất DB.
+# KHÔNG ghi secret vào file này (file được commit).

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Foreground service: giữ app chạy nền liên tục để báo đơn hàng.
+         Đây là cơ chế Zalo và các app nhắn tin dùng. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+ bắt buộc khai báo loại. Dùng specialUse thay vì dataSync:
+         từ Android 15, dataSync bị giới hạn 6 giờ/24 giờ nên một ca làm việc
+         dài sẽ mất thông báo giữa ca. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Tự khởi động lại sau khi điện thoại reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Xin được bỏ qua tối ưu pin (người dùng bấm đồng ý).
+         Bắt buộc với app POS: service nền phải sống để báo đơn mới. Play chỉ
+         chấp nhận quyền này khi app thật sự cần chạy liên tục — trường hợp này
+         đúng, và người dùng luôn được hỏi, không tự ý bật. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- Cho phép truy vấn trình duyệt ngoài (mở link ngoài app) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:hardwareAccelerated="true"
+        android:theme="@style/Theme.ZGOPOS"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:resizeableActivity="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode|density"
+            android:theme="@style/Theme.ZGOPOS.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Service chạy nền liên tục, kiểm tra đơn hàng mỗi 30 giây.
+             specialUse: giữ kết nối realtime của quầy bán hàng suốt ca, không
+             bị giới hạn thời gian như dataSync trên Android 15. -->
+        <service
+            android:name=".KeepAliveService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="POS order alerts: keeps a WebSocket open to notify staff of new sales during a shift" />
+        </service>
+
+        <!-- Tự khởi động lại sau khi reboot hoặc cập nhật app.
+             exported=false: chỉ hệ thống (UID system) gửi được broadcast này,
+             app khác không chèn được intent để bật service của mình. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="false"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Nhận báo thức của ServiceWatchdog để bật lại service nếu nó đã chết
+             (bị đẩy khỏi recents, hết RAM). exported=false + không intent-filter:
+             chỉ app tự gọi được, không ai từ ngoài chèn vào. -->
+        <receiver
+            android:name=".WatchdogReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+    </application>
+</manifest>

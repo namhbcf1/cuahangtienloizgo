@@ -22,3 +22,33 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Android build artifacts & secrets
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/keystore.properties
+android/keys/
+*.jks
+*.keystore
+
+
+# Công cụ cục bộ / môi trường chạy thử
+.wrangler/
+.chrome-profile/
+.serena/
+.planning/
+devapi.log
+devapi.err
+
+# Dữ liệu thật — KHÔNG đưa lên repo công khai (chứa PIN nhân viên và toàn bộ đơn)
+backup/
+qa-artifacts/
+ux-audit/
+ux-audit-v2/
+*.apk
+~$*
+
+# Gói realtime-worker: chỉ commit mã nguồn, không commit node_modules
+realtime-worker/node_modules/

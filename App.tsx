@@ -1,108 +1,159 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
-import { POS } from './components/POS';
+import { POS, CheckoutPayload } from './components/POS';
 import { Inventory } from './components/Inventory';
 import { Transactions } from './components/Transactions';
 import { Login } from './components/Login';
 import { ShiftModal } from './components/ShiftModal';
+import { ShiftSummaryModal } from './components/ShiftSummaryModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { EmployeeManagement } from './components/EmployeeManagement';
-import { Product, Transaction, ViewState, CartItem, User, Shift } from './types';
-import { api } from './services/api';
+import { Product, Transaction, ViewState, User, Shift } from './types';
+import { api, getAuthToken, getDeviceToken, setNativeDeviceToken } from './services/api';
+import { useLiveData } from './hooks/useLiveData';
 
 function App() {
     // Global State
     const [users, setUsers] = useState<User[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [shifts, setShifts] = useState<Shift[]>([]);
 
     // Session State
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentShift, setCurrentShift] = useState<Shift | null>(null);
     const [view, setView] = useState<ViewState>('POS');
 
+    // Dữ liệu sống: tự tải lại mỗi 10 giây + khi quay lại app,
+    // để nhiều máy thấy thay đổi của nhau mà không phải tắt mở lại.
+    const {
+        products, shifts, transactions, stats,
+        loading, refreshing, error: syncError, lastSync, live, refresh,
+    } = useLiveData(!!currentUser);
+
     // Modal State
     const [showShiftModal, setShowShiftModal] = useState<'OPEN' | 'CLOSE' | null>(null);
+    const [summaryShift, setSummaryShift] = useState<Shift | null>(null);
 
-    // Initial Data Load & Session Restore
+    // Khôi phục phiên đăng nhập + tải danh sách nhân viên.
+    // Sản phẩm/ca/giao dịch do useLiveData lo.
     useEffect(() => {
-        const loadData = async () => {
+        const bootstrap = async () => {
             try {
-                // Restore session first to avoid flicker
                 const savedUser = localStorage.getItem('smartpos_user');
                 const savedShift = localStorage.getItem('smartpos_shift');
+                // Chỉ khôi phục phiên khi còn token: token hết hạn hoặc đã bị
+                // xoá thì phải đăng nhập lại, không vào app bằng dữ liệu cũ.
+                if (savedUser && getAuthToken()) setCurrentUser(JSON.parse(savedUser));
+                if (savedShift && getAuthToken()) setCurrentShift(JSON.parse(savedShift));
 
-                if (savedUser) setCurrentUser(JSON.parse(savedUser));
-                if (savedShift) setCurrentShift(JSON.parse(savedShift));
+                // App vừa mở lại (kể cả sau khi bị hệ điều hành giết): đẩy token
+                // THIẾT BỊ xuống native để service nền tiếp tục báo đơn.
+                // Dùng token thiết bị (90 ngày), không dùng token web (12 giờ) —
+                // nếu đẩy token web thì qua đêm service sẽ 401 và im lặng.
+                const deviceToken = getDeviceToken();
+                if (deviceToken) setNativeDeviceToken(deviceToken);
 
-                const [u, p, s, t] = await Promise.all([
-                    api.getUsers(),
-                    api.getProducts(),
-                    api.getShifts(),
-                    api.getTransactions()
-                ]);
-                setUsers(u);
-                setProducts(p);
-                setShifts(s);
-                setTransactions(t);
-
-                // FORCE SYNC: Always try to find the active open shift for the current user from the fresh server data.
-                // This fixes issues where localStorage might be stale or missing, or if the user logged in on another device.
-                if (savedUser) {
-                    const userObj = JSON.parse(savedUser);
-                    const freshOpenShift = s.find((shift: Shift) => shift.userId === userObj.id && shift.status === 'OPEN');
-
-                    if (freshOpenShift) {
-                        // Found an open shift on server -> Use it as source of truth
-                        setCurrentShift(freshOpenShift);
-                        localStorage.setItem('smartpos_shift', JSON.stringify(freshOpenShift));
-                    } else {
-                        // No open shift on server -> Clear local state if it was mistakenly set
-                        if (savedShift && JSON.parse(savedShift).status === 'OPEN') {
-                            setCurrentShift(null);
-                            localStorage.removeItem('smartpos_shift');
-                        }
-                    }
-                }
+                const u = await api.getUsers();
+                if (Array.isArray(u)) setUsers(u);
             } catch (error) {
-                console.error("Failed to load data", error);
+                console.error("Failed to load users", error);
             }
         };
-        loadData();
+        void bootstrap();
     }, []);
 
-    // --- Auth Logic ---
-    const handleLogin = (user: User) => {
-        setCurrentUser(user);
-        localStorage.setItem('smartpos_user', JSON.stringify(user));
+    // Server trả 401 (token hết hạn / bị thu hồi) -> đá về màn đăng nhập ngay,
+    // không để nhân viên tiếp tục bán hàng trong trạng thái mất quyền.
+    useEffect(() => {
+        if (!syncError) return;
+        if (!/hết hạn|Cần đăng nhập|Không đủ quyền/.test(syncError)) return;
+        api.logout();
+        setCurrentUser(null);
+        setCurrentShift(null);
+        localStorage.removeItem('smartpos_user');
+        localStorage.removeItem('smartpos_shift');
+    }, [syncError]);
 
-        // ADMIN BYPASS: Admins don't need to open shifts
-        if (user.role === 'ADMIN') {
-            setView('ADMIN_DASHBOARD');
-            return;
+    // Đồng bộ ca đang mở theo dữ liệu mới nhất từ server.
+    // Chạy mỗi khi `shifts` đổi (tức là sau mỗi lần polling).
+    useEffect(() => {
+        if (!currentUser || shifts.length === 0) return;
+
+        const fresh = shifts.find(s => s.userId === currentUser.id && s.status === 'OPEN');
+
+        if (fresh) {
+            // Có ca mở trên server -> luôn dùng số liệu server (đã cộng dồn từ mọi máy)
+            setCurrentShift(prev => {
+                if (prev && prev.id === fresh.id
+                    && prev.cashSales === fresh.cashSales
+                    && prev.expectedCash === fresh.expectedCash) {
+                    return prev; // không đổi thì giữ nguyên, tránh render lại
+                }
+                localStorage.setItem('smartpos_shift', JSON.stringify(fresh));
+                return fresh;
+            });
+        } else {
+            setCurrentShift(prev => {
+                if (prev && prev.status === 'OPEN') {
+                    localStorage.removeItem('smartpos_shift');
+                    return null;
+                }
+                return prev;
+            });
+        }
+    }, [shifts, currentUser]);
+
+    // --- Auth Logic ---
+    const handleLogin = async (user: User) => {
+        // Không ghi PIN xuống localStorage: trước đây bất kỳ ai mở DevTools
+        // cũng đọc được PIN của nhân viên đang đăng nhập.
+        const { pin: _pin, ...safeUser } = user;
+        setCurrentUser(safeUser as User);
+        localStorage.setItem('smartpos_user', JSON.stringify(safeUser));
+
+        // Phải lấy ca MỚI NHẤT từ server trước khi quyết định mở ca hay không.
+        // Trước đây đọc từ state `shifts` — nhưng state này giờ do polling nạp
+        // nên lúc đăng nhập có thể còn rỗng, khiến admin bị hỏi mở ca dù
+        // đã có ca đang mở.
+        let latestShifts: Shift[] = shifts;
+        try {
+            const fresh = await api.getShifts();
+            if (Array.isArray(fresh)) latestShifts = fresh;
+        } catch {
+            /* mất mạng: dùng tạm dữ liệu đang có */
         }
 
-        // STAFF LOGIC
-        const openShift = shifts.find(s => s.userId === user.id && s.status === 'OPEN');
+        const openShift = latestShifts.find(s => s.userId === user.id && s.status === 'OPEN');
+
         if (openShift) {
             setCurrentShift(openShift);
             localStorage.setItem('smartpos_shift', JSON.stringify(openShift));
-            setView('POS');
+            setView(user.role === 'ADMIN' ? 'ADMIN_DASHBOARD' : 'POS');
+            void refresh();
+            return;
+        }
+
+        // Chưa có ca mở
+        if (user.role === 'ADMIN') {
+            // Admin không bắt buộc phải mở ca: hỏi trước.
+            const wantsShift = window.confirm(
+                'Bạn có muốn mở ca làm việc không? (Nhấn OK để mở ca, Cancel để vào dashboard)'
+            );
+            if (wantsShift) setShowShiftModal('OPEN');
+            else setView('ADMIN_DASHBOARD');
         } else {
             setShowShiftModal('OPEN');
         }
     };
 
     const handleLogoutRequest = () => {
-        // If admin, just logout. If staff, must close shift.
-        if (currentUser?.role === 'ADMIN') {
+        // Đang có ca mở thì phải kết ca trước; ngược lại chỉ cần đăng xuất.
+        if (currentShift && currentShift.status === 'OPEN') {
+            setShowShiftModal('CLOSE');
+        } else {
+            api.logout();
             setCurrentUser(null);
             localStorage.removeItem('smartpos_user');
             localStorage.removeItem('smartpos_shift');
-            setView('POS'); // Reset view for next user
-        } else {
-            setShowShiftModal('CLOSE');
+            setView('POS');
         }
     };
 
@@ -120,7 +171,6 @@ function App() {
         try {
             const updated = await api.updateUser(updatedUser);
             setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-            // Update currentUser session if they are editing themselves
             if (currentUser && currentUser.id === updated.id) {
                 setCurrentUser(updated);
             }
@@ -148,16 +198,16 @@ function App() {
             startTime: new Date().toISOString(),
             startCash: startCash,
             cashSales: 0,
-            expectedCash: startCash, // Initially just the start cash
+            expectedCash: startCash,
             status: 'OPEN'
         };
         try {
             const created = await api.createShift(newShift);
-            setShifts(prev => [...prev, created]);
             setCurrentShift(created);
-            localStorage.setItem('smartpos_shift', JSON.stringify(created)); // PERSIST!
+            localStorage.setItem('smartpos_shift', JSON.stringify(created));
             setShowShiftModal(null);
             setView('POS');
+            void refresh(); // đồng bộ danh sách ca cho máy khác thấy
         } catch (error) {
             console.error("Failed to open shift", error);
         }
@@ -166,7 +216,7 @@ function App() {
     const handleCloseShift = async (endCash: number) => {
         if (!currentShift) return;
 
-        const expected = currentShift.startCash + currentShift.cashSales; // Simplified local recalc
+        const expected = currentShift.startCash + currentShift.cashSales;
         const updatedShift: Shift = {
             ...currentShift,
             endTime: new Date().toISOString(),
@@ -176,83 +226,70 @@ function App() {
         };
 
         try {
-            const saved = await api.updateShift(updatedShift);
-            setShifts(prev => prev.map(s => s.id === currentShift.id ? saved : s));
+            await api.updateShift(updatedShift);
 
             // Cleanup Session
+            api.logout();
             setCurrentShift(null);
             setCurrentUser(null);
             localStorage.removeItem('smartpos_user');
             localStorage.removeItem('smartpos_shift');
             setShowShiftModal(null);
             setView('POS');
+            void refresh();
         } catch (error) {
             console.error("Failed to close shift", error);
         }
     };
 
     // --- Core Business Logic ---
-    const handleCheckout = async (cartItems: CartItem[], total: number, paymentMethod: 'CASH' | 'CARD' | 'TRANSFER', receivedAmount?: number, changeAmount?: number) => {
-        // For Staff: Ensure they have an active shift before allowing checkout
-        if (currentUser.role === 'STAFF' && !currentShift?.id) {
-            console.error("Staff must have an active shift to checkout");
-            alert("Lỗi: Bạn phải mở ca làm việc trước khi bán hàng!");
-            return;
+    const handleCheckout = async (payload: CheckoutPayload) => {
+        // Staff phải có ca đang mở mới được bán
+        if (!currentShift?.id) {
+            throw new Error('Bạn phải mở ca làm việc trước khi bán hàng');
         }
 
         const newTx: Transaction = {
-            id: Date.now().toString(),
+            id: payload.id,
             date: new Date().toISOString(),
-            total,
-            paymentMethod,
-            items: cartItems.map(c => ({
-                productId: c.productId,
-                name: c.name,
-                price: c.price,
-                quantity: c.quantity
-            })),
-            shiftId: currentShift?.id || null,
+            total: payload.total,
+            paymentMethod: payload.paymentMethod,
+            items: payload.items,
+            shiftId: currentShift.id,
             cashierName: currentUser?.name,
-            receivedAmount,
-            changeAmount
+            receivedAmount: payload.receivedAmount,
+            changeAmount: payload.changeAmount
         };
 
-        try {
-            await api.createTransaction(newTx);
-            setTransactions(prev => [...prev, newTx]);
+        // Không bọc try/catch: để lỗi nổi lên POS, POS giữ nguyên giỏ hàng
+        // và hiện thông báo. Trước đây lỗi bị nuốt nên app vẫn in hoá đơn
+        // "thành công" dù DB không có giao dịch nào.
+        const res = await api.createTransaction(newTx);
+        if (res && typeof res === 'object' && 'error' in res) {
+            throw new Error(String((res as { error: unknown }).error));
+        }
 
-            // Refresh products to get updated stock
-            const freshProducts = await api.getProducts();
-            setProducts(freshProducts);
+        // Server đã trừ kho và cộng cashSales trong một batch.
+        // Chỉ cần tải lại để lấy số thật — không tự đoán, không ghi đè.
+        await refresh();
 
-            if (currentShift && paymentMethod === 'CASH') {
-                // Optimistic update for shift cash
-                const updatedShift = {
-                    ...currentShift,
-                    cashSales: currentShift.cashSales + total,
-                    expectedCash: currentShift.expectedCash + total
-                };
-                setCurrentShift(updatedShift);
-                localStorage.setItem('smartpos_shift', JSON.stringify(updatedShift));
-                // Also update in list
-                setShifts(prev => prev.map(s => s.id === currentShift.id ? updatedShift : s));
-
-                // Update backend shift as well
-                try {
-                    await api.updateShift(updatedShift);
-                } catch (err) {
-                    console.error("Failed to update shift cash on backend", err);
-                }
-            }
-        } catch (error) {
-            console.error("Checkout failed", error);
+        if (currentShift && payload.paymentMethod === 'CASH') {
+            // Hiện ngay con số ước tính cho mượt, lần polling sau sẽ sửa lại
+            // bằng số chính xác từ server.
+            const optimistic = {
+                ...currentShift,
+                cashSales: currentShift.cashSales + payload.total,
+                expectedCash: currentShift.expectedCash + payload.total
+            };
+            setCurrentShift(optimistic);
+            localStorage.setItem('smartpos_shift', JSON.stringify(optimistic));
         }
     };
 
     const handleAddProduct = async (newProduct: Product) => {
         try {
-            const created = await api.createProduct(newProduct);
-            setProducts(prev => [...prev, created]);
+            await api.createProduct(newProduct);
+            await refresh();
         } catch (error) {
             console.error("Failed to add product", error);
         }
@@ -263,11 +300,32 @@ function App() {
         if (!product) return;
         const updated = { ...product, stock: product.stock + qtyToAdd };
         try {
-            const saved = await api.updateProduct(updated);
-            setProducts(prev => prev.map(p => p.id === productId ? saved : p));
+            await api.updateProduct(updated);
+            await refresh();
         } catch (error) {
             console.error("Failed to update stock", error);
         }
+    };
+
+    const handleUpdateProduct = async (updated: Product) => {
+        // Không nuốt lỗi: form sửa sản phẩm cần biết khi server từ chối
+        // (mất mạng, 401, 403) để hiện thông báo thay vì đóng form như đã lưu.
+        await api.updateProduct(updated);
+        await refresh();
+    };
+
+    /**
+     * Xoá sản phẩm. Server chặn 409 nếu sản phẩm đã từng bán (giữ lịch sử
+     * đối soát); khi đó ném lỗi lên UI để người dùng quyết định xoá cưỡng bức.
+     */
+    const handleDeleteProduct = async (id: string, force = false) => {
+        const res = await api.deleteProduct(id, force);
+        await refresh();
+        return res;
+    };
+
+    const reloadProducts = async () => {
+        await refresh();
     };
 
     // --- Render ---
@@ -283,6 +341,10 @@ function App() {
                 onChangeView={setView}
                 currentUser={currentUser}
                 onLogout={handleLogoutRequest}
+                syncing={refreshing}
+                syncError={syncError}
+                lastSync={lastSync}
+                live={live}
             >
                 {view === 'POS' && (
                     <POS
@@ -297,19 +359,25 @@ function App() {
                         products={products}
                         onAddProduct={handleAddProduct}
                         onUpdateStock={handleUpdateStock}
+                        onUpdateProduct={handleUpdateProduct}
+                        onReloadProducts={reloadProducts}
+                        onDeleteProduct={handleDeleteProduct}
                     />
                 )}
                 {view === 'TRANSACTIONS' && (
                     <Transactions
-                        transactions={
-                            currentUser.role === 'ADMIN'
-                                ? transactions
-                                : transactions.filter(t => t.shiftId === currentShift?.id)
-                        }
+                        scope={currentUser.role === 'ADMIN' ? 'store' : 'shift'}
+                        shiftId={currentUser.role === 'ADMIN' ? undefined : currentShift?.id}
                     />
                 )}
                 {view === 'ADMIN_DASHBOARD' && currentUser.role === 'ADMIN' && (
-                    <AdminDashboard shifts={shifts} transactions={transactions} />
+                    <AdminDashboard
+                        shifts={shifts}
+                        transactions={transactions}
+                        stats={stats}
+                        currentShift={currentShift}
+                        onShiftClick={(shift) => setSummaryShift(shift)}
+                    />
                 )}
                 {view === 'EMPLOYEE_MANAGEMENT' && currentUser.role === 'ADMIN' && (
                     <EmployeeManagement
@@ -328,6 +396,14 @@ function App() {
                     currentShift={currentShift}
                     onConfirm={showShiftModal === 'OPEN' ? handleOpenShift : handleCloseShift}
                     onCancel={() => showShiftModal === 'CLOSE' ? setShowShiftModal(null) : null}
+                />
+            )}
+
+            {summaryShift && (
+                <ShiftSummaryModal
+                    shift={summaryShift}
+                    transactions={transactions}
+                    onClose={() => setSummaryShift(null)}
                 />
             )}
         </>
