@@ -11,6 +11,7 @@ import { EmployeeManagement } from './components/EmployeeManagement';
 import { Product, Transaction, ViewState, User, Shift } from './types';
 import { api, getAuthToken, getDeviceToken, setNativeDeviceToken } from './services/api';
 import { useLiveData } from './hooks/useLiveData';
+import { ToastProvider, useToast } from './components/Toast';
 
 function App() {
     // Global State
@@ -330,12 +331,48 @@ function App() {
 
     // --- Render ---
 
+    const { toast } = useToast();
+
+    // Theo dõi trạng thái kết nối internet — hiện toast rõ ràng khi mất/mạng hồi phục.
+    useEffect(() => {
+      const handleOnline = () => {
+        toast({
+          type: 'success',
+          title: 'Đã khôi phục kết nối',
+          description: 'Dữ liệu sẽ tự đồng bộ lại trong giây lát.',
+          duration: 4000,
+        });
+      };
+      const handleOffline = () => {
+        toast({
+          type: 'error',
+          title: 'Mất kết nối internet',
+          description: 'Bạn vẫn có thể bán hàng, dữ liệu sẽ được đồng bộ khi mạng trở lại.',
+          duration: 0,
+          action: { label: 'Đóng', onClick: () => {} },
+        });
+      };
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      // Kiểm tra ngay khi mount
+      if (!navigator.onLine) {
+        handleOffline();
+      }
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }, [toast]);
+
     if (!currentUser) {
         return <Login users={users} onLogin={handleLogin} />;
     }
 
     return (
-        <>
+        <ToastProvider>
             <Layout
                 currentView={view}
                 onChangeView={setView}
@@ -406,7 +443,7 @@ function App() {
                     onClose={() => setSummaryShift(null)}
                 />
             )}
-        </>
+        </ToastProvider>
     );
 }
 

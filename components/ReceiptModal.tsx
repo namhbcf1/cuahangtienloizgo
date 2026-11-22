@@ -1,7 +1,7 @@
 import React from 'react';
 import { Transaction } from '../types';
 import { formatDateTime } from '../utils/date';
-import { CheckCircle, Printer, Eye, X } from 'lucide-react';
+import { CheckCircle, Printer, X } from 'lucide-react';
 
 interface ReceiptModalProps {
     transaction: Transaction;
@@ -123,13 +123,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, onClose
 
                     {/* Action Buttons — cố định đáy, không bị đẩy ra ngoài */}
                     <div className="shrink-0 px-4 py-3 md:p-6 bg-slate-50 border-t border-slate-100 flex gap-2 md:gap-3">
-                        <button
-                            onClick={handlePreview}
-                            className="flex-1 min-h-[48px] py-3 px-2 md:px-4 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-white transition-all flex items-center justify-center gap-1.5 md:gap-2 text-sm md:text-base whitespace-nowrap"
-                        >
-                            <Eye className="w-4 h-4 shrink-0" />
-                            Xem trước
-                        </button>
                         <button
                             onClick={handlePrint}
                             className="flex-1 min-h-[48px] py-3 px-2 md:px-4 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-1.5 md:gap-2 shadow-lg shadow-primary-600/20 text-sm md:text-base whitespace-nowrap"

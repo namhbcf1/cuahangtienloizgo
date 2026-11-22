@@ -1,10 +1,11 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Plus, Minus, Trash2, ShoppingCart, CheckCircle, TrendingUp, X, AlertTriangle, RefreshCw, Pencil, RotateCcw, Check } from 'lucide-react';
 import { Product, CartItem, Transaction } from '../types';
 import { ReceiptModal } from './ReceiptModal';
 import { matchesKeyword, normalizeForSearch } from '../services/search';
 import { showSale, markSelfSale } from '../services/notify/bridge';
+import { useToast } from './Toast';
 
 /**
  * Thông tin một lần thanh toán. `id` do POS sinh ra và được dùng luôn cho
@@ -80,6 +81,8 @@ function writeSavedCarts(orders: { id: number; items: CartItem[] }[], activeOrde
 }
 
 export const POS: React.FC<POSProps> = ({ products, transactions, currentUser, onCheckout }) => {
+  const { toast } = useToast();
+
   // --- Multi-Order State ---
   //
   // Giỏ được lưu xuống localStorage: trước đây giỏ chỉ nằm trong RAM nên
@@ -202,6 +205,7 @@ export const POS: React.FC<POSProps> = ({ products, transactions, currentUser, o
   // --- Cart Handlers ---
   const handleAddToCart = (product: Product) => {
     const existing = cart.find(item => item.productId === product.id);
+    const newCount = cart.reduce((acc, item) => acc + item.quantity, 0) + 1;
 
     if (existing) {
       updateActiveCart(cart.map(item => item.productId === product.id
@@ -217,11 +221,34 @@ export const POS: React.FC<POSProps> = ({ products, transactions, currentUser, o
         quantity: 1
       }]);
     }
+
+    toast({
+      type: 'success',
+      title: `Đã thêm ${product.name}`,
+      description: `${newCount} món trong giỏ`,
+      duration: 2500,
+    });
   };
 
   const removeFromCart = (productId: string) => {
+    const removedItem = cart.find(item => item.productId === productId);
+    if (!removedItem) return;
+
     updateActiveCart(cart.filter(item => item.productId !== productId));
     if (editingPriceId === productId) setEditingPriceId(null);
+
+    toast({
+      type: 'warning',
+      title: `Đã xóa ${removedItem.name}`,
+      description: `${removedItem.quantity} món`,
+      duration: 5000,
+      action: {
+        label: 'Hoàn tác',
+        onClick: () => {
+          updateActiveCart([...cart, removedItem]);
+        },
+      },
+    });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -516,11 +543,6 @@ export const POS: React.FC<POSProps> = ({ products, transactions, currentUser, o
           {filteredProducts.map(product => {
             const salesCount = productSales[product.id] || 0;
             const isBestSeller = salesCount > 0 && salesCount === Math.max(...(Object.values(productSales) as number[]));
-            const stockColor = product.stock <= 0
-              ? 'text-red-500 bg-red-50'
-              : product.stock < 5
-                ? 'text-orange-600 bg-orange-50'
-                : 'text-emerald-600 bg-emerald-50';
 
             return (
               <div
@@ -546,7 +568,9 @@ export const POS: React.FC<POSProps> = ({ products, transactions, currentUser, o
                   <h3 className="font-semibold text-slate-700 text-[13px] md:text-sm leading-tight line-clamp-2 min-h-[2.1em] group-hover:text-primary-600 transition-colors">{product.name}</h3>
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-bold text-primary-600 text-[13px] md:text-sm">{product.price.toLocaleString()}đ</span>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${stockColor}`}>{product.stock}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.stock <= 0 ? 'bg-red-100 text-red-600 border border-red-200' : product.stock < 5 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-emerald-100 text-emerald-600 border border-emerald-200'}`}>
+                      {product.stock <= 0 ? 'Hết hàng' : product.stock < 5 ? `Còn ${product.stock}` : product.stock}
+                    </span>
                   </div>
                   {salesCount > 0 && (
                     <div className="text-[10px] text-slate-400 font-medium">Đã bán: {salesCount}</div>

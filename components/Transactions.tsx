@@ -356,7 +356,10 @@ export const Transactions: React.FC<TransactionsProps> = ({ shiftId, scope = 'st
             </div>
           ) : loading && items.length === 0 ? (
             <div className="flex items-center justify-center h-64 text-slate-400">
-              <RefreshCw className="w-6 h-6 mr-2 animate-spin" /> Đang tải lịch sử...
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-slate-200 animate-pulse" />
+                <p className="text-xs font-medium text-slate-600">Đang tải lịch sử...</p>
+              </div>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400">
